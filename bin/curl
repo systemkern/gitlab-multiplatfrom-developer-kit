@@ -1,0 +1,19 @@
+#!/bin/sh
+# This shell script provides a predictable docker-based version of the application in use.
+# Thereby creating a predictable environment for development, building, and debugging
+
+IMAGE="curlimages/curl:7.74.0"
+COMMAND="curl"
+
+# Bash parameter expansion will only replace _null_ with --interactive --tty
+# the first "-" is for configuring the expansion mode
+export DOCKER_OPTS="${DOCKER_OPTS---network=bridge --interactive --tty}"
+
+
+exec docker run --rm --name curl \
+  --volume  "$(pwd)":"$(pwd)"    \
+  --workdir "$(pwd)"             \
+  ${DOCKER_OPTS:-}               \
+  "$IMAGE" "$COMMAND" "$@"
+
+

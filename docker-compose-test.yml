@@ -1,0 +1,18 @@
+# original source: https://github.com/sameersbn/docker-gitlab/blob/master/docker-compose.yml
+version: '3.5'
+
+services:
+  gitlab:
+    container_name: gitlab
+    restart: always
+    image: gitlab/gitlab-ce:12.7.0-ce.0
+    ports: [ "80:80" ]
+    volumes: [ gitlab-sdk-opt:/var/opt/:z ]
+    environment:
+      GITLAB_HTTPS: 'false'
+      GITLAB_ROOT_PASSWORD: 'password'
+    logging:
+      driver: none
+
+volumes:
+  gitlab-sdk-opt:

@@ -1,0 +1,49 @@
+FROM gitlab/gitlab-ce:12.7.0-ce.0
+MAINTAINER systemkern.com
+
+ENV GITLAB_HTTPS         'false'
+ENV GITLAB_ROOT_PASSWORD 'password'
+
+# Setup JAVA_HOME -- useful for docker commandline
+ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64/
+RUN export JAVA_HOME
+
+###
+### Modify Gitlab Omnibus scripts
+###
+RUN mv /assets/wrapper /assets/gitlab-wrapper
+# Remove the wait for sigterm from the gitlab wrapper script to make it "interactive"
+# Our own wrapper will handle starting and stopping of services
+RUN sed -i "/# Tail all logs/d" /assets/gitlab-wrapper
+RUN sed -i "/# gitlab-ctl tail &/d" /assets/gitlab-wrapper
+RUN sed -i "/# Wait for SIGTERM/d" /assets/gitlab-wrapper
+RUN sed -i "/wait/d" /assets/gitlab-wrapper
+
+
+###
+### SOFTWARE
+###
+# Install Open JDK 8 and fix cert issues
+RUN apt-get update               && \
+    apt-get install --assume-yes    \
+    curl                            \
+    # Java Development Kit
+    openjdk-8-jdk                   \
+    gradle                          \
+    ca-certificates-java         && \
+    # cleanup apt-get cache
+    apt-get clean                && \
+    # Fix cert issues
+    update-ca-certificates -f
+
+
+# Wrapper to handle additional script to run after default gitlab image's /assets/wrapper
+ADD src/dockerTest/assets /assets
+
+# Volumes from Gitlab base image
+VOLUME ["/etc/gitlab", "/var/log/gitlab", "/var/opt/gitlab"]
+
+WORKDIR /workdir
+ADD . /workdir
+
+CMD ["/assets/wrapper"]

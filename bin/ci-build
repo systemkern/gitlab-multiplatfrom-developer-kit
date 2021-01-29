@@ -1,0 +1,32 @@
+#!/bin/sh
+# change to the repository root folder via the scripts location
+cd "$(dirname "$0")"/..
+########################################
+set -x    # output all commands
+set -e    # exit on immediately on every error
+set -u    # error on usage of undefined variables
+########################################
+
+
+#Ensure a fresh gitlab startup
+docker rm -f gitlab-sdk | true
+
+docker run --detach --rm                \
+  --network=bridge --name gitlab-sdk    \
+  --volume  gitlab-sdk-opt:/var/opt/:z  \
+  --env GITLAB_HTTPS="false"            \
+  --env GITLAB_ROOT_PASSWORD='password' \
+  --publish "80:80"                     \
+  gitlab/gitlab-ce:12.7.0-ce.0
+
+
+echo "### $(date) Waiting for Gitlab API."
+until [ "$(bin/curl --silent --output /dev/null -w ''%{http_code}'' localhost/api/v4/projects)" = "200" ]; do
+  printf '.'
+  sleep 5;
+done
+echo "### $(date) Expecting code 200; received: $(bin/curl --silent --output /dev/null -w ''%{http_code}'' localhost/api/v4/projects)"
+
+bin/gradle jvmTest
+
+docker rm -f gitlab-sdk

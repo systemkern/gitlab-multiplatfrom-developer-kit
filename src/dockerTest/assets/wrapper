@@ -1,0 +1,33 @@
+#!/bin/bash
+########################################
+set -x  # output all commands
+set -o pipefail
+set -e # exit on immediately on every error
+set -u # error on usage of undefined variables
+########################################
+
+function sigterm_handler() {
+  echo "SIGTERM signal received, try to gracefully shutdown all services..."
+  gitlab-ctl stop
+  exit
+}
+trap "sigterm_handler; exit" TERM
+
+#########################
+# Call the Gitlab wrapper
+# Gitlab will self-daemonize and run in the background hence no '&' is needed
+echo "booting and configuring Gitlab ..."
+/assets/gitlab-wrapper >/dev/null
+
+URL="http://localhost/api/v4/projects"
+echo "Ensuring availability of the Gitlab API to start"
+until [ "$(curl --silent --output /dev/null -w ''%{http_code}'' "$URL")" = "200" ]; do
+  echo "Pinging $URL $(curl --silent --output /dev/null -w ''%{http_code}'' "$URL")";
+  sleep 5;
+  done;
+echo "Gitlab is ready"
+
+#########################
+echo "starting gradle tests..."
+ls -al
+./gradlew jvmTest

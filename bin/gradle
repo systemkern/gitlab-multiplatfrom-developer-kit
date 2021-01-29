@@ -1,0 +1,34 @@
+#!/bin/sh
+# This shell script provides a predictable docker-based version of the application in use.
+# Thereby creating a predictable environment for development, building, and debugging
+
+IMAGE="gradle:6.8-jdk8"
+COMMAND="gradle"
+
+# Bash parameter expansion will only replace _null_ with --interactive --tty
+# the first "-" is for configuring the expansion mode
+export DOCKER_OPTS="${DOCKER_OPTS---interactive --tty}"
+
+# the expr substr command has a different syntax on OSX
+if [ "$(uname)" != "Darwin" ] && [ "$(expr substr "$(uname -s)" 1 5)" = "Linux" ]; then
+  # --user and --group-add options simulate the current user inside the docker container
+  # this is necessary because otherwise the command would run as root inside docker
+  # and created files and folder on the host would then belong to host:$(pwd)/root:root
+  DOCKER_OPTS="$DOCKER_OPTS --user $(id -u)"
+fi
+
+# Disable the Gradle daemon for Continuous Integration servers as correctness
+# is usually a priority over speed in CI environments. Using a fresh
+# runtime for each build is more reliable since the runtime is completely
+# isolated from any previous builds.
+export GRADLE_OPTS="${GRADLE_OPTS--Dorg.gradle.daemon=false}"
+
+
+exec docker run --rm --name gradle                    \
+  --volume  /var/run/docker.sock:/var/run/docker.sock \
+  --volume  gradle:/home/gradle/.gradle               \
+  --volume  "$(pwd)":"$(pwd)"                         \
+  --workdir "$(pwd)"                                  \
+  --env GRADLE_OPTS="$GRADLE_OPTS"                    \
+  ${DOCKER_OPTS:-}                                    \
+  "$IMAGE" "$COMMAND" "$@"
